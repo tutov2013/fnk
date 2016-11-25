@@ -264,7 +264,7 @@ function proccess_fnk_teams()
     }
 
     proccess_teams_form();
-
+ 
     $arTeams = get_teams();
 
     ?>
