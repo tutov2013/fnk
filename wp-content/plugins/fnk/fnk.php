@@ -4,17 +4,18 @@ Plugin Name: Команды
 Author: t0v.ru
 Author URI: http://t0v.ru/
 */
-$fnk_ver = '1.0';
+global $wpdb;
+global $table_teams;
+global $table_players;
+
 $table_teams = $wpdb->prefix . 'fnk_teams';
 $table_players = $wpdb->prefix . 'fnk_players';
 
 function install_fnk()
 {
-
     global $wpdb;
-    global $table_teams, $table_players;
-    global $fnk_ver;
-
+    global $table_teams;
+    global $table_players;
 
     if ($wpdb->get_var("SHOW TABLES LIKE '" . $table_teams . "'") != $table_teams) {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -30,6 +31,7 @@ function install_fnk()
 					) ENGINE = MYISAM ';
 
         dbDelta($sql);
+
     }
 
     if ($wpdb->get_var("SHOW TABLES LIKE '" . $table_players . "'") != $table_players) {
@@ -50,9 +52,7 @@ function install_fnk()
         dbDelta($sql);
     }
 
-    add_option("fnk_teams_ver", $fnk_ver);
-
-
+    add_option("fnk_teams_ver", '1.0');
 }
 
 register_activation_hook(__FILE__, 'install_fnk');
@@ -60,21 +60,29 @@ register_activation_hook(__FILE__, 'install_fnk');
  * @param $sKey
  * @return string
  */
-function file_upload($arFile) {
+function file_upload($arFile)
+{
     $sFilename = '';
     if (!empty($arFile)) {
 
-        switch( $arFile['type'] )
-        {
-            case 'image/gif' : $t='.gif';$type = imagecreatefromgif(  $arFile['tmp_name'] ); break;
-            case 'image/jpeg' : $t='.jpg';$type = imagecreatefromjpeg( $arFile['tmp_name'] ); break;
-            case 'image/png' : $t='.png';$type = imagecreatefrompng(  $arFile['tmp_name'] ); break;
+        switch ($arFile['type']) {
+            case 'image/gif' :
+                $t = '.gif';
+                $type = imagecreatefromgif($arFile['tmp_name']);
+                break;
+            case 'image/jpeg' :
+                $t = '.jpg';
+                $type = imagecreatefromjpeg($arFile['tmp_name']);
+                break;
+            case 'image/png' :
+                $t = '.png';
+                $type = imagecreatefrompng($arFile['tmp_name']);
+                break;
         }
 
-        if($type)
-        {
-            $sFilename = '/fnk_images/'.time().$t;
-            move_uploaded_file($arFile['tmp_name'], $_SERVER['DOCUMENT_ROOT'].'/fnk_images/'.time().$t);
+        if ($type) {
+            $sFilename = '/fnk_images/' . time() . $t;
+            move_uploaded_file($arFile['tmp_name'], $_SERVER['DOCUMENT_ROOT'] . '/fnk_images/' . time() . $t);
         }
     }
     return $sFilename;
@@ -87,10 +95,34 @@ function add_fnk_page()
 {
 
     if (function_exists('add_submenu_page')) {
-        add_submenu_page('index.php', 'Команды', 'Команды', 0, basename(__FILE__), 'proccess_fnk_teams');
-        add_submenu_page('index.php', 'Игроки', 'Игроки', 0, basename(__FILE__), 'proccess_fnk_players');
+        add_submenu_page('index.php', 'Управление командами', 'Управление командами', 0, basename(__FILE__), 'process_fnk_init');
     }
 
+}
+
+
+function process_fnk_init()
+{
+
+    switch ($_REQUEST['object']) {
+        case 'teams':
+            if (!empty($_REQUEST['new'])) {
+                add_players($_REQUEST['new']);
+            } else {
+                proccess_players_form();
+            }
+            break;
+        case 'players':
+            if (!empty($_REQUEST['new'])) {
+                add_players($_REQUEST['new']);
+            } else {
+                proccess_players_form();
+            }
+            break;
+    }
+    proccess_fnk_teams();
+    proccess_fnk_players();
+    return true;
 }
 
 // fetches all teams
@@ -144,15 +176,11 @@ function proccess_teams_form()
     $arHome = $_REQUEST['home'];
     $arDeletes = $_REQUEST['del'];
 
-    if (!empty($dels)) {
-
-        foreach ($arDeletes as $iId) {
-
-            $sql = 'DELETE FROM ' . $table_teams . ' WHERE id=' . $iId;
-            $wpdb->query($sql);
-
-        }
-
+    if (!empty($arDeletes)) {
+        $arDeletes = array_merge(array(0),$arDeletes);
+        $sDeletes = implode(' OR id=',$arDeletes);
+        $sql = 'DELETE FROM ' . $table_teams . ' WHERE id=' . $sDeletes;
+        $wpdb->query($sql);
     }
 
 
@@ -160,12 +188,12 @@ function proccess_teams_form()
 
         foreach ($arNames as $iId => $sName) {
 
-            $sName = $wpdb->esc_sql($sName);
-            $sCode = $wpdb->esc_sql($arCodes[$iId]);
-            $sLocation = $wpdb->esc_sql($arLocations[$iId]);
+            $sName = esc_sql($sName);
+            $sCode = esc_sql($arCodes[$iId]);
+            $sLocation = esc_sql($arLocations[$iId]);
             $iRating = intval($arRatings[$iId]);
-            $sLogo = $wpdb->esc_sql($arLogo[$iId]);
-            $sHome = $wpdb->esc_sql($arHome[$iId]);
+            $sLogo = esc_sql($arLogo[$iId]);
+            $sHome = esc_sql($arHome[$iId]);
 
             $sql = 'UPDATE ' . $table_teams . ' SET name="' . $sName
                 . '", code="' . $sCode
@@ -201,15 +229,11 @@ function proccess_players_form()
     $arAges = $_REQUEST['age'];
     $arDeletes = $_REQUEST['del'];
 
-    if (!empty($dels)) {
-
-        foreach ($arDeletes as $iId) {
-
-            $sql = 'DELETE FROM ' . $table_players . ' WHERE id=' . $iId;
-            $wpdb->query($sql);
-
-        }
-
+    if (!empty($arDeletes)) {
+        $arDeletes = array_merge(array(0),$arDeletes);
+        $sDeletes = implode(' OR id=',$arDeletes);
+        $sql = 'DELETE FROM ' . $table_players . ' WHERE id=' . $sDeletes;
+        $wpdb->query($sql);
     }
 
 
@@ -217,14 +241,14 @@ function proccess_players_form()
 
         foreach ($arNames as $iId => $sName) {
 
-            $sName = $wpdb->esc_sql($sName);
-            $sCode = $wpdb->esc_sql($arCodes[$iId]);
-            $sLocation = $wpdb->esc_sql($arLocations[$iId]);
+            $sName = esc_sql($sName);
+            $sCode = esc_sql($arCodes[$iId]);
+            $sLocation = esc_sql($arLocations[$iId]);
             $iRating = intval($arRatings[$iId]);
-            $sPhoto = $wpdb->esc_sql($arPhotos[$iId]);
-            $sEmail = $wpdb->esc_sql($arEmails[$iId]);
-            $sTeam = $wpdb->esc_sql($arTeams[$iId]);
-            $sAge = $wpdb->esc_sql($arAges[$iId]);
+            $sPhoto = esc_sql($arPhotos[$iId]);
+            $sEmail = esc_sql($arEmails[$iId]);
+            $sTeam = esc_sql($arTeams[$iId]);
+            $sAge = esc_sql($arAges[$iId]);
 
             $sql = 'UPDATE ' . $table_players . ' SET name="' . $sName
                 . '", code="' . $sCode
@@ -252,12 +276,11 @@ function add_teams($arData)
     global $wpdb;
     global $table_teams;
 
-    $sKeys = array_keys($arData);
+    $arKeys = array_keys($arData);
+    $sKeys = implode(',', $arKeys);
     $sValues = '"' . implode('","', $arData) . '"';
-
-
     $sql = 'INSERT INTO ' . $table_teams . ' (' . $sKeys . ') VALUES (' . $sValues . ')';
-    $wpdb->query($sql);
+    $status = $wpdb->query($sql);
 
 }
 
@@ -269,7 +292,8 @@ function add_players($arData)
     global $wpdb;
     global $table_players;
 
-    $sKeys = array_keys($arData);
+    $arKeys = array_keys($arData);
+    $sKeys = implode(',', $arKeys);
     $sValues = '"' . implode('","', $arData) . '"';
 
 
@@ -283,6 +307,7 @@ function add_players($arData)
 
 function proccess_fnk_teams()
 {
+
     $arTeams = get_teams();
 
     ?>
@@ -292,18 +317,18 @@ function proccess_fnk_teams()
 
         <table width="60%">
 
+            <tr>
+                <td><b>ID</b></td>
+                <td><b>Код</b></td>
+                <td><b>Имя</b></td>
+                <td><b>Город</b></td>
+                <td><b>Домашняя площадка</b></td>
+                <td><b>Логотип</b></td>
+                <td><b>Рейтинг</b></td>
+                <td><b>Удалить</b></td>
+            </tr>
             <? if (!empty($arTeams)) { ?>
-                <form action="" method="post">
-                    <tr>
-                        <td><b>ID</b></td>
-                        <td><b>Код</b></td>
-                        <td><b>Имя</b></td>
-                        <td><b>Город</b></td>
-                        <td><b>Домашняя площадка</b></td>
-                        <td><b>Логотип</b></td>
-                        <td><b>Рейтинг</b></td>
-                        <td><b>Удалить</b></td>
-                    </tr>
+                <form action="" method="post" enctype="multipart/form-data">
 
                     <? foreach ($arTeams as $arTeam) { ?>
                         <tr>
@@ -315,17 +340,19 @@ function proccess_fnk_teams()
                                 <input type="text" name="name[<?= $arTeam['id'] ?>]" value="<?= $arTeam['name'] ?>"/>
                             </td>
                             <td>
-                                <input type="text" name="location[<?= $arTeam['id'] ?>]" value="<?= $arTeam['location'] ?>"/>
+                                <input type="text" name="location[<?= $arTeam['id'] ?>]"
+                                       value="<?= $arTeam['location'] ?>"/>
                             </td>
                             <td>
                                 <input type="text" name="home[<?= $arTeam['id'] ?>]" value="<?= $arTeam['home'] ?>"/>
                             </td>
                             <td>
                                 <img src="<?= $arTeam['logo'] ?>">
-                                <input type="file" name="logo[<?= $arTeam['id'] ?>]"/>
+                                <input type="file" name="pic"/>
                             </td>
                             <td>
-                                <input type="text" name="rating[<?= $arTeam['id'] ?>]" value="<?= $arTeam['rating'] ?>"/>
+                                <input type="text" name="rating[<?= $arTeam['id'] ?>]"
+                                       value="<?= $arTeam['rating'] ?>"/>
                             </td>
                             <td align="center">
                                 <input type="checkbox" name="del[<?= $arTeam['id'] ?>]" value="<?= $arTeam['id'] ?>"/>
@@ -336,6 +363,7 @@ function proccess_fnk_teams()
                     <tr>
                         <td>&nbsp;</td>
                         <td colspan="4">
+                            <input type="hidden" name="object" value="teams"/>
                             <input type="submit" value="Обновить"/>
                         </td>
                     </tr>
@@ -349,21 +377,18 @@ function proccess_fnk_teams()
             <form action="" method="post">
                 <tr>
                     <td>&nbsp;</td>
-                    <td colspan="5"><b>Добавить</b></td>
-                </tr>
-                <tr>
-                    <td>&nbsp;</td>
                     <td><input type="text" name="new[code]"/></td>
                     <td><input type="text" name="new[name]"/></td>
                     <td><input type="text" name="new[location]"/></td>
                     <td><input type="text" name="new[rating]"/></td>
-                    <td><input type="file" name="new[logo]"/></td>
+                    <td><input type="file" name="pic"/></td>
                     <td><input type="text" name="new[home]"/></td>
                     <td>&nbsp;</td>
                 </tr>
                 <tr>
                     <td>&nbsp;</td>
                     <td colspan="5">
+                        <input type="hidden" name="object" value="teams"/>
                         <input type="submit" value="Добавить"/>
                     </td>
                 </tr>
@@ -390,49 +415,55 @@ function proccess_fnk_players()
 
         <table width="60%">
 
+            <tr>
+                <td><b>ID</b></td>
+                <td><b>Код</b></td>
+                <td><b>Имя</b></td>
+                <td><b>Город</b></td>
+                <td><b>ID-команды</b></td>
+                <td><b>Фото</b></td>
+                <td><b>Возраст</b></td>
+                <td><b>Email</b></td>
+                <td><b>Рейтинг</b></td>
+                <td><b>Удалить</b></td>
+            </tr>
             <? if (!empty($arPlayers)) { ?>
-                <form action="" method="post">
-                    <tr>
-                        <td><b>ID</b></td>
-                        <td><b>Код</b></td>
-                        <td><b>Имя</b></td>
-                        <td><b>Город</b></td>
-                        <td><b>ID-команды</b></td>
-                        <td><b>Фото</b></td>
-                        <td><b>Возраст</b></td>
-                        <td><b>Email</b></td>
-                        <td><b>Рейтинг</b></td>
-                        <td><b>Удалить</b></td>
-                    </tr>
+                <form action="" method="post" enctype="multipart/form-data">
 
                     <? foreach ($arPlayers as $arPlayer) { ?>
                         <tr>
                             <td><?= $arPlayer['id'] ?></td>
                             <td>
-                                <input type="text" name="code[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['code'] ?>"/>
+                                <input type="text" name="code[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['code'] ?>"/>
                             </td>
                             <td>
-                                <input type="text" name="name[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['name'] ?>"/>
+                                <input type="text" name="name[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['name'] ?>"/>
                             </td>
                             <td>
-                                <input type="text" name="location[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['location'] ?>"/>
+                                <input type="text" name="location[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['location'] ?>"/>
                             </td>
                             <td><?= $arPlayer['team_id'] ?></td>
                             <td>
                                 <img src="<?= $arPlayer['photo'] ?>">
-                                <input type="file" name="photo[<?= $arPlayer['id'] ?>]"/>
+                                <input type="file" name="pic"/>
                             </td>
                             <td>
                                 <input type="text" name="age[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['age'] ?>"/>
                             </td>
                             <td>
-                                <input type="text" name="email[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['email'] ?>"/>
+                                <input type="text" name="email[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['email'] ?>"/>
                             </td>
                             <td>
-                                <input type="text" name="rating[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['rating'] ?>"/>
+                                <input type="text" name="rating[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['rating'] ?>"/>
                             </td>
                             <td align="center">
-                                <input type="checkbox" name="del[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['id'] ?>"/>
+                                <input type="checkbox" name="del[<?= $arPlayer['id'] ?>]"
+                                       value="<?= $arPlayer['id'] ?>"/>
                             </td>
                         </tr>
                     <? } ?>
@@ -440,6 +471,7 @@ function proccess_fnk_players()
                     <tr>
                         <td>&nbsp;</td>
                         <td colspan="4">
+                            <input type="hidden" name="object" value="players"/>
                             <input type="submit" value="Обновить"/>
                         </td>
                     </tr>
@@ -453,21 +485,20 @@ function proccess_fnk_players()
             <form action="" method="post">
                 <tr>
                     <td>&nbsp;</td>
-                    <td colspan="5"><b>Добавить</b></td>
-                </tr>
-                <tr>
-                    <td>&nbsp;</td>
                     <td><input type="text" name="new[code]"/></td>
                     <td><input type="text" name="new[name]"/></td>
                     <td><input type="text" name="new[location]"/></td>
+                    <td><input type="text" name="new[team_id]"/></td>
+                    <td><input type="file" name="pic"/></td>
+                    <td><input type="text" name="new[age]"/></td>
+                    <td><input type="text" name="new[email]"/></td>
                     <td><input type="text" name="new[rating]"/></td>
-                    <td><input type="file" name="new[logo]"/></td>
-                    <td><input type="text" name="new[home]"/></td>
                     <td>&nbsp;</td>
                 </tr>
                 <tr>
                     <td>&nbsp;</td>
                     <td colspan="5">
+                        <input type="hidden" name="object" value="players"/>
                         <input type="submit" value="Добавить"/>
                     </td>
                 </tr>
