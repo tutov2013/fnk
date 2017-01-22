@@ -4,22 +4,18 @@ Plugin Name: Команды
 Author: t0v.ru
 Author URI: http://t0v.ru/
 */
-global $wpdb;
-global $table_teams;
-global $table_players;
+require_once(__DIR__.'/loader.php');
 
-$table_teams = $wpdb->prefix . 'fnk_teams';
-$table_players = $wpdb->prefix . 'fnk_players';
+
 
 function install_fnk()
 {
     global $wpdb;
-    global $table_teams;
-    global $table_players;
+    global $obFnk;
 
-    if ($wpdb->get_var("SHOW TABLES LIKE '" . $table_teams . "'") != $table_teams) {
+    if ($wpdb->get_var("SHOW TABLES LIKE '" . $obFnk->Helper->getTableName('teams') . "'") != $obFnk->Helper->getTableName('teams')) {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        $sql = ' CREATE TABLE ' . $table_teams . ' (
+        $sql = ' CREATE TABLE ' . $obFnk->Helper->getTableName('teams') . ' (
 					`id` INT NOT NULL AUTO_INCREMENT ,
 					`code` VARCHAR( 254 ) ,
 					`name` VARCHAR( 254 ) NOT NULL ,
@@ -34,9 +30,9 @@ function install_fnk()
 
     }
 
-    if ($wpdb->get_var("SHOW TABLES LIKE '" . $table_players . "'") != $table_players) {
+    if ($wpdb->get_var("SHOW TABLES LIKE '" . $obFnk->Helper->getTableName('players') . "'") != $obFnk->Helper->getTableName('players')) {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        $sql = ' CREATE TABLE ' . $table_players . ' (
+        $sql = ' CREATE TABLE ' . $obFnk->Helper->getTableName('players') . ' (
 					`id` INT NOT NULL AUTO_INCREMENT ,
 					`code` VARCHAR( 254 ) ,
 					`name` VARCHAR( 254 ) NOT NULL ,
@@ -56,70 +52,45 @@ function install_fnk()
 }
 
 register_activation_hook(__FILE__, 'install_fnk');
-/**
- * @param $sKey
- * @return string
- */
-function file_upload($arFile)
-{
-    $sFilename = '';
-    if (!empty($arFile)) {
-
-        switch ($arFile['type']) {
-            case 'image/gif' :
-                $t = '.gif';
-                $type = imagecreatefromgif($arFile['tmp_name']);
-                break;
-            case 'image/jpeg' :
-                $t = '.jpg';
-                $type = imagecreatefromjpeg($arFile['tmp_name']);
-                break;
-            case 'image/png' :
-                $t = '.png';
-                $type = imagecreatefrompng($arFile['tmp_name']);
-                break;
-        }
-
-        if ($type) {
-            $sFilename = '/fnk_images/' . time() . $t;
-            move_uploaded_file($arFile['tmp_name'], $_SERVER['DOCUMENT_ROOT'] . '/fnk_images/' . time() . $t);
-        }
-    }
-    return $sFilename;
-}
-
-
-// adding menu`s page
-
-function add_fnk_page()
-{
-
-    if (function_exists('add_submenu_page')) {
-        add_submenu_page('index.php', 'Управление командами', 'Управление командами', 0, basename(__FILE__), 'process_fnk_init');
-    }
-
-}
 
 
 function process_fnk_init()
 {
+    global $obFnk;
+
+    $arTabs = array(
+        'teams' => array(
+            'NAME' => 'Команды',
+            'ACTIVE' => $_REQUEST['object'] == 'teams'
+        ),
+        'players' => array(
+            'NAME' => 'Игроки',
+            'ACTIVE' => $_REQUEST['object'] == 'teams'
+        ),
+    );
 
     switch ($_REQUEST['object']) {
         case 'teams':
             if (!empty($_REQUEST['new'])) {
-                add_players($_REQUEST['new']);
+                $arData = $_REQUEST['new'];
+                $arData['logo'] = $obFnk->Helper->fileUpload($_FILES['pic']);
+                add_teams($arData);
             } else {
-                proccess_players_form();
+                proccess_teams_form();
             }
             break;
         case 'players':
             if (!empty($_REQUEST['new'])) {
-                add_players($_REQUEST['new']);
+                $arData = $_REQUEST['new'];
+                $arData['photo'] = $obFnk->Helper->fileUpload($_FILES['pic']);
+                add_players($arData);
             } else {
                 proccess_players_form();
             }
             break;
     }
+
+    $obFnk->View->tabs($arTabs);
     proccess_fnk_teams();
     proccess_fnk_players();
     return true;
@@ -133,7 +104,7 @@ function get_teams()
     global $wpdb;
     global $table_teams;
 
-    $sql = 'SELECT * FROM ' . $table_teams . ' ORDER BY name ASC';
+    $sql = 'SELECT * FROM ' . $table_teams . ' ORDER BY id ASC';
     $results = $wpdb->get_results($sql, ARRAY_A);
 
     if (empty($results)) return false;
@@ -150,7 +121,7 @@ function get_players()
     global $wpdb;
     global $table_players;
 
-    $sql = 'SELECT * FROM ' . $table_players . ' ORDER BY name ASC';
+    $sql = 'SELECT * FROM ' . $table_players . ' ORDER BY id ASC';
     $results = $wpdb->get_results($sql, ARRAY_A);
 
     if (empty($results)) return false;
@@ -172,13 +143,17 @@ function proccess_teams_form()
     $arNames = $_REQUEST['name'];
     $arLocations = $_REQUEST['location'];
     $arRatings = $_REQUEST['rating'];
-    $arLogo = $_REQUEST['logo'];
+
+
+    $arLogo = prepare_files_upload('pic');
+
+
     $arHome = $_REQUEST['home'];
     $arDeletes = $_REQUEST['del'];
 
     if (!empty($arDeletes)) {
-        $arDeletes = array_merge(array(0),$arDeletes);
-        $sDeletes = implode(' OR id=',$arDeletes);
+        $arDeletes = array_merge(array(0), $arDeletes);
+        $sDeletes = implode(' OR id=', $arDeletes);
         $sql = 'DELETE FROM ' . $table_teams . ' WHERE id=' . $sDeletes;
         $wpdb->query($sql);
     }
@@ -193,12 +168,13 @@ function proccess_teams_form()
             $sLocation = esc_sql($arLocations[$iId]);
             $iRating = intval($arRatings[$iId]);
             $sLogo = esc_sql($arLogo[$iId]);
+
             $sHome = esc_sql($arHome[$iId]);
 
             $sql = 'UPDATE ' . $table_teams . ' SET name="' . $sName
                 . '", code="' . $sCode
                 . '", rating="' . $iRating
-                . '", logo="' . $sLogo
+                . ($sLogo ? '", logo="' . $sLogo : '')
                 . '", home="' . $sHome
                 . '", location="' . $sLocation
                 . '" WHERE id=' . $iId;
@@ -223,15 +199,15 @@ function proccess_players_form()
     $arNames = $_REQUEST['name'];
     $arLocations = $_REQUEST['location'];
     $arRatings = $_REQUEST['rating'];
-    $arPhotos = $_REQUEST['photo'];
+    $arPhotos = prepare_files_upload('pic');
     $arEmails = $_REQUEST['email'];
     $arTeams = $_REQUEST['team_id'];
     $arAges = $_REQUEST['age'];
     $arDeletes = $_REQUEST['del'];
 
     if (!empty($arDeletes)) {
-        $arDeletes = array_merge(array(0),$arDeletes);
-        $sDeletes = implode(' OR id=',$arDeletes);
+        $arDeletes = array_merge(array(0), $arDeletes);
+        $sDeletes = implode(' OR id=', $arDeletes);
         $sql = 'DELETE FROM ' . $table_players . ' WHERE id=' . $sDeletes;
         $wpdb->query($sql);
     }
@@ -253,7 +229,7 @@ function proccess_players_form()
             $sql = 'UPDATE ' . $table_players . ' SET name="' . $sName
                 . '", code="' . $sCode
                 . '", rating="' . $iRating
-                . '", photo="' . $sPhoto
+                . ($sPhoto ? '", photo="' . $sPhoto : '')
                 . '", email="' . $sEmail
                 . '", location="' . $sLocation
                 . '", team_id="' . $sTeam
@@ -307,10 +283,37 @@ function add_players($arData)
 
 function proccess_fnk_teams()
 {
-
+    global $obFnk;
     $arTeams = get_teams();
+    if (!empty($arTeams)) {
+        $arParams = array(
+            'OBJECT' => 'teams',
+            'TITLE' => 'Команды',
+            'CAPTIONS' => array(
+                'id' => 'ID',
+                'code' => 'Код',
+                'name' => 'Имя',
+                'city' => 'Город',
+                'home' => 'Домашняя площадка',
+                'logo' => 'Логотип',
+                'rating' => 'Рейтинг'
+            ),
+            'ITEMS' => $arTeams,
+        );
 
+        $arFields =array(
+            'code',
+            'name',
+            'city',
+            'home',
+            'logo',
+            'rating',
+        );
+        
+        return $obFnk->View->getTabContent($arParams, array('logo')).$obFnk->View->getFormAdd($arFields);
+    }
     ?>
+
     <div class="wrap">
 
         <h2>Список команд</h2>
@@ -347,8 +350,11 @@ function proccess_fnk_teams()
                                 <input type="text" name="home[<?= $arTeam['id'] ?>]" value="<?= $arTeam['home'] ?>"/>
                             </td>
                             <td>
-                                <img src="<?= $arTeam['logo'] ?>">
-                                <input type="file" name="pic"/>
+                                <label class="upload_pic" style="position: relative;width:200px;min-height:30px;display:block;">
+                                <span style="display:block;border-bottom:1px dotted #333;position: absolute;">Загрузить изображение...</span>
+                                <img style="max-width:150px;max-height:150px;" src="<?= $arTeam['logo'] ?>">
+                                <input type="file" name="pic[<?= $arTeam['id'] ?>]" style="display: none;"/>
+                                </label>
                             </td>
                             <td>
                                 <input type="text" name="rating[<?= $arTeam['id'] ?>]"
@@ -374,7 +380,7 @@ function proccess_fnk_teams()
                 </tr>
             <? } ?>
 
-            <form action="" method="post">
+            <form action="" method="post" enctype="multipart/form-data">
                 <tr>
                     <td>&nbsp;</td>
                     <td><input type="text" name="new[code]"/></td>
@@ -447,8 +453,11 @@ function proccess_fnk_players()
                             </td>
                             <td><?= $arPlayer['team_id'] ?></td>
                             <td>
-                                <img src="<?= $arPlayer['photo'] ?>">
-                                <input type="file" name="pic"/>
+                                <label class="upload_pic" style="position: relative;width:200px;min-height:30px;display:block;">
+                                    <span style="display:block;border-bottom:1px dotted #333;position: absolute;">Загрузить изображение...</span>
+                                    <img style="max-width:150px;max-height:150px;" src="<?= $arPlayer['photo'] ?>">
+                                    <input type="file" name="pic[<?= $arPlayer['id'] ?>]" style="display: none;"/>
+                                </label>
                             </td>
                             <td>
                                 <input type="text" name="age[<?= $arPlayer['id'] ?>]" value="<?= $arPlayer['age'] ?>"/>
@@ -482,7 +491,7 @@ function proccess_fnk_players()
                 </tr>
             <? } ?>
 
-            <form action="" method="post">
+            <form action="" method="post" enctype="multipart/form-data">
                 <tr>
                     <td>&nbsp;</td>
                     <td><input type="text" name="new[code]"/></td>
@@ -508,6 +517,17 @@ function proccess_fnk_players()
     </div>
 
     <?
+}
+
+
+// adding menu`s page
+
+function add_fnk_page()
+{
+    if (function_exists('add_submenu_page')) {
+        add_submenu_page('index.php', 'Управление командами', 'Управление командами', 0, basename(__FILE__), 'process_fnk_init');
+    }
+    return true;
 }
 
 add_action('admin_menu', 'add_fnk_page');
