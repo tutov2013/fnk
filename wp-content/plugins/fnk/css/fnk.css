@@ -53,3 +53,21 @@ ul.fnk_tabs > li > a {
 .fnk_form_add .fnk_field input{
     float: right;
 }
+.fnk_form_list {
+    background: #fcffef;
+}
+
+.fnk_form_list input[type='submit']{
+
+}
+
+.list_table {
+    background: #fcffef;
+    width: 100%;
+    text-align: center;
+}
+
+.list_table thead{
+    font-weight: bold;
+    background: #c0c2b5;
+}

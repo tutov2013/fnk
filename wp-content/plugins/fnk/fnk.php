@@ -47,7 +47,7 @@ function install_fnk()
         dbDelta($sql);
     }
 
-    add_option("fnk_teams_ver", '1.0');
+    add_option("fnk_teams_ver", '1.001');
 }
 
 register_activation_hook(__FILE__, 'install_fnk');
@@ -74,21 +74,14 @@ function process_fnk_init()
                 $arData = $_REQUEST['new'];
                 $arData['logo'] = $obFnk->Helper->fileUpload($_FILES['pic']);
                 add_teams($arData);
-            } else {
-                proccess_teams_form();
             }
-            proccess_fnk_teams();
-
             break;
         case 'players':
             if (!empty($_REQUEST['new'])) {
                 $arData = $_REQUEST['new'];
                 $arData['photo'] = $obFnk->Helper->fileUpload($_FILES['pic']);
                 add_players($arData);
-            } else {
-                proccess_players_form();
             }
-            proccess_fnk_players();
             break;
     }
 
@@ -96,9 +89,11 @@ function process_fnk_init()
 
     switch ($_REQUEST['tab']) {
         case 'teams':
+            proccess_teams_form();
             proccess_fnk_teams();
             break;
         case 'players':
+            proccess_players_form();
             proccess_fnk_players();
             break;
     }
@@ -154,7 +149,6 @@ function proccess_teams_form()
     $arNames = $_REQUEST['name'];
     $arLocations = $_REQUEST['location'];
     $arRatings = $_REQUEST['rating'];
-
 
     $arLogo = $obFnk->Helper->prepareFilesUpload('pic');
 
@@ -296,34 +290,38 @@ function proccess_fnk_teams()
     $arTeams = get_teams();
 
     $arCaptions = array(
-        'id' => 'ID',
         'code' => 'Код',
-        'name' => 'Имя',
+        'name' => 'Название',
         'location' => 'Город',
         'home' => 'Домашняя площадка',
         'logo' => 'Логотип',
-        'rating' => 'Рейтинг'
+        'rating' => 'Рейтинг',
     );
 
-    if (!empty($arTeams)) {
-        $arParams = array(
-            'OBJECT' => 'teams',
-            'TITLE' => 'Команды',
-            'CAPTIONS' => $arCaptions,
-            'ITEMS' => $arTeams
-        );
-
-        echo '<form action="" method="post" enctype="multipart/form-data">' .
-            $obFnk->View->getTabContent($arParams, array('logo')) .
-            '<input type="hidden" name="object" value="teams">' .
-            '<div class="fnk_field"><input type="submit" value="Coхранить"></div></form>';
-    }
+    $arParams = array(
+        'OBJECT' => 'teams',
+        'TITLE' => 'Команды',
+        'CAPTIONS' => $arCaptions,
+        'TYPES' => array(
+            'logo' => 'file',
+        ),
+        'ITEMS' => $arTeams
+    );
 
     echo '<form action="" method="post" class="fnk_form_add" enctype="multipart/form-data">' .
         '<h2>Добавление команды</h2>' .
-        $obFnk->View->getFormAdd($arCaptions, array('logo')) .
+        $obFnk->View->getFormAdd($arParams) .
         '<input type="hidden" name="object" value="teams">' .
         '<div class="fnk_field"><input type="submit" value="Coхранить"></div></form>';
+
+    if (!empty($arTeams)) {
+        echo '<form action="" method="post" class="fnk_form_list" enctype="multipart/form-data">' .
+            $obFnk->View->wrapArrayTableTeams($arTeams, $arCaptions) .
+            '<input type="hidden" name="object" value="teams">' .
+            '<input type="hidden" name="tab" value="teams">' .
+            '</form>';
+    }
+
 }
 
 
@@ -347,23 +345,30 @@ function proccess_fnk_players()
         'rating' => 'Рейтинг'
     );
 
-    if (!empty($arPlayers)) {
-        $arParams = array(
-            'OBJECT' => 'players',
-            'TITLE' => 'Игроки',
-            'CAPTIONS' => $arCaptions,
-            'ITEMS' => $arPlayers
-        );
+    $arParams = array(
+        'OBJECT' => 'players',
+        'TITLE' => 'Игроки',
+        'CAPTIONS' => $arCaptions,
+        'ITEMS' => $arPlayers,
+        'TYPES' => array(
+            'location' => 'select',
+            'team_id' => 'team',
+            'photo' => 'file',
+            'email' => 'email',
+        )
+    );
 
-        echo '<form action="" method="post" enctype="multipart/form-data">' .
+    if (!empty($arPlayers)) {
+        echo '<form action="" method="post" class="fnk_form_list" enctype="multipart/form-data">' .
             $obFnk->View->getTabContent($arParams, array('photo')) .
             '<input type="hidden" name="object" value="players">' .
             '<div class="fnk_field"><input type="submit" value="Coхранить"></div></form>';
     }
-    echo '<form action="" method="post" class="fnk_form_add" enctype="multipart/form-data">'  .
+    echo '<form action="" method="post" class="fnk_form_add" enctype="multipart/form-data">' .
         '<h2>Добавление игрока</h2>' .
-        $obFnk->View->getFormAdd($arCaptions, array('photo')) .
+        $obFnk->View->getFormAdd($arCaptions) .
         '<input type="hidden" name="object" value="players">' .
+        '<input type="hidden" name="tab" value="players">' .
         '<div class="fnk_field"><input type="submit" value="Coхранить"></div></form>';
 
 }

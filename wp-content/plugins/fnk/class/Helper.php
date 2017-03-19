@@ -56,7 +56,7 @@ class Helper
             $arFiles = array();
             foreach ($_FILES[$sKey]['error'] as $sID => $iError) {
                 if ($iError > 0) continue;
-                $arFiles[$sID] = file_upload(array(
+                $arFiles[$sID] = $this->fileUpload(array(
                     'name' => $_FILES[$sKey]['name'][$sID],
                     'type' => $_FILES[$sKey]['type'][$sID],
                     'tmp_name' => $_FILES[$sKey]['tmp_name'][$sID],
@@ -69,9 +69,13 @@ class Helper
             if ($_FILES[$sKey]['error'] > 0) {
                 return false;
             } else {
-                return file_upload($_FILES[$sKey]);
+                return $this->fileUpload($_FILES[$sKey]);
             }
         }
+    }
+
+    function getTableData() {
+
     }
 
 }

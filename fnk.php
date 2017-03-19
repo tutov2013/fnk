@@ -56,29 +56,7 @@ function install_fnk()
 }
 
 register_activation_hook(__FILE__, 'install_fnk');
-/**
- * @param $sKey
- * @return string
- */
-function file_upload($arFile) {
-    $sFilename = '';
-    if (!empty($arFile)) {
 
-        switch( $arFile['type'] )
-        {
-            case 'image/gif' : $t='.gif';$type = imagecreatefromgif(  $arFile['tmp_name'] ); break;
-            case 'image/jpeg' : $t='.jpg';$type = imagecreatefromjpeg( $arFile['tmp_name'] ); break;
-            case 'image/png' : $t='.png';$type = imagecreatefrompng(  $arFile['tmp_name'] ); break;
-        }
-
-        if($type)
-        {
-            $sFilename = '/fnk_images/'.time().$t;
-            move_uploaded_file($arFile['tmp_name'], $_SERVER['DOCUMENT_ROOT'].'/fnk_images/'.time().$t);
-        }
-    }
-    return $sFilename;
-}
 
 
 // adding menu`s page
