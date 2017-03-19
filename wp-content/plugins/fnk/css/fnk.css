@@ -1,0 +1,55 @@
+ul.fnk_tabs {
+    width:100%;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+}
+
+ul.fnk_tabs > li {
+    float:left;
+    width: 50%;
+    text-align: center;
+    background: #278620;
+    padding: 0;
+    margin: 0;
+}
+
+
+ul.fnk_tabs > li:hover, ul.fnk_tabs > li.active {
+    background: #1e6019;
+}
+
+ul.fnk_tabs > li > a {
+    color: white;
+    display: inline-block;
+    padding:10px 5%;
+    width: 90%;
+    font-size: 22px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.fnk_form_add {
+    background-color: #fcffef;
+    padding: 15px;
+}
+
+
+.fnk_form_add input[type='submit']{
+    width:100%;
+}
+
+.fnk_form_add .fnk_field {
+    width: 100%;
+    padding: 3px;
+    max-width: 400px;
+    overflow: hidden;
+}
+
+.fnk_form_add .fnk_field:nth-child(odd) {
+    background-color: #eaece0;
+}
+
+.fnk_form_add .fnk_field input{
+    float: right;
+}

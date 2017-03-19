@@ -11,7 +11,10 @@ class View
                 <?
                 foreach ($arTabs as $sId => $arTab) {
                     ?>
-                    <li><a href="/wp-admin/index.php?page=fnk.php&tab=<?= $sId ?>"><?= $arTab['NAME'] ?></a></li>
+                    <li<?= $arTab['ACTIVE'] ? ' class="active"' : '' ?>>
+                        <a href="/wp-admin/index.php?page=fnk.php&tab=<?= $sId ?>"><?= $arTab['NAME'] ?></a>
+                        <?= $arTab['CONTENT'] ?>
+                    </li>
                     <?
                 }
                 ?>
@@ -54,7 +57,7 @@ class View
         <? foreach ($arParams['ITEMS'] as $arItem): ?>
         <? foreach ($arItem as $sKey => $sVal): ?>
             <? if (in_array($sKey, $arFileKeys)): ?>
-                <?= $this->wrapField('<img src="' . $sVal . '"><input type="file" name="pic[' . $arItem['id'] . ']"/>'); ?>
+                <?= $this->wrapField('<img src="' . $sVal . '"><input type="file" name="pic[' . $arItem['id'] . ']"/>', $arParams['CAPTIONS'][$sKey]); ?>
             <? else: ?>
                 <?= $this->wrapField('<input type="text" name="' . $sKey . '[' . $arItem['id'] . ']" value=' . $sVal . '>', $arParams['CAPTIONS'][$sKey]); ?>
             <? endif; ?>
@@ -65,8 +68,22 @@ class View
         return $this->wrapTabContent($sContent);
     }
 
-    function getFormAdd() {
-
+    function getFormAdd($arFields, $arFileKeys)
+    {
+        unset($arFields['id']);
+        ob_start();
+        ?>
+        <? foreach ($arFields as $sField => $sCaption): ?>
+            <? if (in_array($sField, $arFileKeys)): ?>
+                <?= $this->wrapField('<input type="file" name="pic"/>', $sCaption); ?>
+            <? else: ?>
+                <?= $this->wrapField('<input type="text" name="new[' . $sField . ']">', $sCaption); ?>
+            <? endif; ?>
+        <? endforeach; ?>
+        <?
+        $sContent = ob_get_clean();
+        return $this->wrapTabContent($sContent);
     }
+
 
 }
