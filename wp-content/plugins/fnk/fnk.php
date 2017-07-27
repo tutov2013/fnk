@@ -386,3 +386,17 @@ function add_fnk_page()
 }
 
 add_action('admin_menu', 'add_fnk_page');
+
+/*
+ *
+1
+2
+3
+4
+5
+6
+7
+8
+9
+0
+ * */
