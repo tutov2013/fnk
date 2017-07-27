@@ -392,6 +392,9 @@ add_action('admin_menu', 'add_fnk_page');
 1
 2
 3
+123
+123
+123
 4
 5
 6
